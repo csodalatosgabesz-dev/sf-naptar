@@ -158,6 +158,46 @@ form label{font-size:13px;font-weight:600;color:var(--muted)}
   .t-egyeb{background:#1e3a8a;color:#bfdbfe}
   .card h1{color:#93c5fd}
 }
+/* ---- Telefon (600 px alatt) ---- */
+@media (max-width:600px){
+  main{padding:10px}
+  header{padding:calc(10px + env(safe-area-inset-top)) 12px 10px;gap:6px}
+  header h1{font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+  header button{padding:6px 9px;font-size:13px;min-height:34px}
+  input,select,textarea{font-size:16px!important}
+  .monthbar{flex-wrap:wrap;gap:6px}
+  .monthbar strong{display:none}
+  .monthbar select{flex:1;min-width:0}
+  .monthbar button{min-height:40px}
+  .jumprow{flex-wrap:wrap;gap:6px}
+  .jumprow input{flex:1 1 100%}
+  .wx-bar{flex-wrap:wrap}
+  .wx-bar input{flex:1 1 100%}
+  .wx-bar button{width:100%}
+  .wx-week{grid-template-columns:none;grid-auto-flow:column;grid-auto-columns:minmax(74px,1fr);overflow-x:auto;scroll-snap-type:x mandatory;padding-bottom:4px}
+  .wx-day{scroll-snap-align:start}
+  .wx-ico{font-size:18px}
+  .wx-msg{grid-column:auto}
+  .wx-hero{padding:12px;gap:10px}
+  .hero-ico{font-size:40px;width:48px}
+  .hero-label{font-size:16px}
+  .hero-temp .big{font-size:24px}
+  #grid{gap:3px}
+  .wd{font-size:10px;padding:4px 0;letter-spacing:0}
+  .day{min-height:50px;padding:3px;border-radius:9px}
+  .num{font-size:12px;min-width:20px;padding:0 2px}
+  .chip{font-size:0;height:6px;padding:0;margin-top:2px;border-radius:3px}
+  .more,.hol{display:none}
+  #dayPanel{padding:12px}
+  #dayPanel h2{font-size:15px}
+  .quick{gap:6px}
+  .quick button{font-size:13px;min-height:42px;padding:6px 4px}
+  .sumrow{flex-wrap:wrap}
+  .sumrow button{width:100%}
+  .ev{padding:8px 10px}
+  dialog{width:94vw;padding:14px}
+  .card{margin:8vh 14px;padding:22px}
+}
 </style>
 </head>
 <body>
