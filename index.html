@@ -198,6 +198,23 @@ form label{font-size:13px;font-weight:600;color:var(--muted)}
   dialog{width:94vw;padding:14px}
   .card{margin:8vh 14px;padding:22px}
 }
+/* ---- Pinpad: ne nagyítson dupla koppintásra ---- */
+body,button,.key{touch-action:manipulation}
+.key{-webkit-tap-highlight-color:transparent;user-select:none}
+
+/* ---- Macskák a naptáron (három szint: távoli, közép, előtér) ---- */
+.calwrap{position:relative}
+#catLayer{position:absolute;inset:0;pointer-events:none;overflow:hidden;border-radius:12px}
+.cat{position:absolute;left:0;top:0;line-height:1;user-select:none;transition-property:left,top;transition-timing-function:ease-in-out}
+.cat .flipper{transition:transform .3s}
+.cat.left .flipper{transform:scaleX(-1)}
+.cat .bob{animation:catbob .45s ease-in-out infinite alternate}
+.cat.sit .bob{animation:none;transform:translateY(4px) scale(.96)}
+.cat.l1{font-size:15px;opacity:.5;z-index:1;transition-duration:9s;filter:blur(.3px)}
+.cat.l2{font-size:22px;opacity:.85;z-index:2;transition-duration:6s}
+.cat.l3{font-size:30px;opacity:1;z-index:3;transition-duration:3.5s;filter:drop-shadow(0 2px 3px rgba(0,0,0,.25))}
+@keyframes catbob{from{transform:translateY(0) rotate(-5deg)}to{transform:translateY(-3px) rotate(5deg)}}
+@media (prefers-reduced-motion:reduce){.cat{transition:none!important}.cat .bob{animation:none}}
 </style>
 </head>
 <body>
@@ -258,7 +275,10 @@ form label{font-size:13px;font-weight:600;color:var(--muted)}
         <button id="patternBtn">Műszakminta</button>
       </div>
     </section>
-    <div id="grid"></div>
+    <div class="calwrap">
+      <div id="grid"></div>
+      <div id="catLayer"></div>
+    </div>
     <div id="dayPanel">
       <div style="display:flex;align-items:center;gap:8px">
         <h2 id="dayTitle"></h2>
@@ -392,6 +412,57 @@ function unlock() {
   unlocked = true;
   showScreen('app');
   render();
+  startCats();
+}
+
+// ---------- Macskák ----------
+const CATS = [
+  { cls: 'l1', emoji: '🐈', dur: 9000 },
+  { cls: 'l1', emoji: '🐈‍⬛', dur: 8000 },
+  { cls: 'l2', emoji: '🐱', dur: 6000 },
+  { cls: 'l2', emoji: '🐈', dur: 6500 },
+  { cls: 'l3', emoji: '🐈‍⬛', dur: 3500 },
+  { cls: 'l3', emoji: '🐱', dur: 4000 }
+];
+
+function startCats() {
+  const layer = $('catLayer');
+  if (layer.dataset.started) return;
+  layer.dataset.started = '1';
+  CATS.forEach(c => {
+    const el = document.createElement('div');
+    el.className = `cat ${c.cls}`;
+    el.innerHTML = `<div class="flipper"><div class="bob">${c.emoji}</div></div>`;
+    layer.appendChild(el);
+    c.el = el;
+    c.x = 0;
+    // késleltetett indulás, hogy ne egyszerre mozogjanak
+    c.timer = setTimeout(() => roam(c), Math.random() * 2500);
+  });
+}
+
+function roam(c) {
+  const layer = $('catLayer');
+  if (!layer.offsetParent) { c.timer = setTimeout(() => roam(c), 2000); return; } // rejtett nézetben szünet
+  const W = layer.clientWidth, H = layer.clientHeight;
+  const s = c.el.offsetWidth || 30;
+  const nx = Math.random() * Math.max(1, W - s);
+  const ny = Math.random() * Math.max(1, H - s);
+  c.el.classList.toggle('left', nx < c.x);
+  c.el.classList.remove('sit');
+  c.el.style.left = nx + 'px';
+  c.el.style.top = ny + 'px';
+  c.x = nx;
+  const wait = c.dur * (0.9 + Math.random() * 0.8);
+  c.timer = setTimeout(() => {
+    if (Math.random() < 0.3) {
+      // megáll és ül egy kicsit
+      c.el.classList.add('sit');
+      c.timer = setTimeout(() => roam(c), 2500 + Math.random() * 3000);
+    } else {
+      roam(c);
+    }
+  }, wait);
 }
 
 async function handlePin() {
