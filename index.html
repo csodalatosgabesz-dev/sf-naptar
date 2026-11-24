@@ -44,6 +44,10 @@ main{max-width:900px;margin:0 auto;padding:12px}
 .wx-day.sel{outline:2px solid #1f6feb}
 .wx-ico{font-size:20px}
 .wx-msg{font-size:13px;color:#6b7385;grid-column:1/-1}
+.summary{margin-bottom:10px}
+.next{background:linear-gradient(135deg,#1d4ed8,#3b82f6);color:#fff;border-radius:14px;padding:10px 14px;font-size:14px;margin-bottom:8px}
+.sumrow{display:flex;align-items:center;gap:8px;font-size:13px;color:#64748b}
+.hint{font-size:12px;color:#64748b;margin:4px 0 0}
 .day.holiday .num{color:#c0392b}
 .quick{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
 .quick button{flex:1;min-width:90px}
@@ -175,6 +179,13 @@ form label{font-size:13px;font-weight:600;color:var(--muted)}
       <input type="search" id="search" placeholder="Keresés: cím, megjegyzés, dátum (pl. 2026-11)">
       <input type="date" id="jump" title="Ugrás dátumra" aria-label="Ugrás dátumra">
     </div>
+    <section class="summary">
+      <div id="nextShift" class="next"></div>
+      <div class="sumrow">
+        <div id="monthSum" style="flex:1"></div>
+        <button id="patternBtn">Műszakminta</button>
+      </div>
+    </section>
     <div id="grid"></div>
     <div id="dayPanel">
       <div style="display:flex;align-items:center;gap:8px">
@@ -187,6 +198,7 @@ form label{font-size:13px;font-weight:600;color:var(--muted)}
         <button data-type="pihenes" class="t-pihenes">Pihenő</button>
         <button data-type="szabadsag" class="t-szabadsag">Szabadság</button>
       </div>
+      <button id="copyWeek">Ez a hét másolása a következő hétre</button>
       <div id="dayList"></div>
     </div>
   </main>
@@ -206,6 +218,20 @@ form label{font-size:13px;font-weight:600;color:var(--muted)}
       <button type="button" id="delBtn" class="danger hidden">Törlés</button>
       <button type="button" id="cancelBtn">Mégse</button>
       <button class="primary">Mentés</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="patternModal">
+  <form id="patternForm">
+    <h3 style="margin:0 0 4px">Műszakminta</h3>
+    <p class="hint">Betűk: N = nappal, E = éjszaka, P = pihenő, S = szabadság, - = üres. Például: NNEEPPPP</p>
+    <label>Minta<input id="pt_pattern" required placeholder="NNEEPPPP" autocapitalize="characters"></label>
+    <label>Kezdő nap<input type="date" id="pt_start" required></label>
+    <label>Záró nap<input type="date" id="pt_end" required></label>
+    <div class="actions">
+      <button type="button" id="ptCancel">Mégse</button>
+      <button class="primary">Létrehozás</button>
     </div>
   </form>
 </dialog>
@@ -389,6 +415,8 @@ function render() {
   }
   renderDay();
   renderWeek();
+  renderSummary();
+  renderNext();
 }
 
 function normalizeQuery(raw) {
@@ -439,6 +467,103 @@ function renderDay() {
 }
 
 $('search').oninput = () => renderDay();
+
+// ---------- Összesítő és következő műszak ----------
+function renderSummary() {
+  const prefix = ymd(view).slice(0, 7);
+  const cnt = { nappal: 0, ejszaka: 0, pihenes: 0, szabadsag: 0 };
+  events.forEach(e => { if (e.date && e.date.startsWith(prefix) && cnt[e.type] !== undefined) cnt[e.type]++; });
+  $('monthSum').innerHTML = `Nappal: <b>${cnt.nappal}</b> · Éjszaka: <b>${cnt.ejszaka}</b> · Pihenő: <b>${cnt.pihenes}</b> · Szabadság: <b>${cnt.szabadsag}</b>`;
+}
+
+function renderNext() {
+  const today = ymd(new Date());
+  const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
+  const next = events
+    .filter(e => (e.type === 'nappal' || e.type === 'ejszaka') && e.date >= today)
+    .sort(byStart)[0];
+  if (!next) { $('nextShift').textContent = 'Nincs következő műszak a naptárban.'; return; }
+  const [y, m, d] = next.date.split('-').map(Number);
+  const when = next.date === today ? 'ma'
+    : next.date === ymd(tomorrow) ? 'holnap'
+    : new Date(y, m - 1, d).toLocaleDateString('hu-HU', { weekday: 'long', month: 'long', day: 'numeric' });
+  $('nextShift').innerHTML = `Következő műszak: <b>${when}</b> – ${TYPE_LABELS[next.type]}`;
+}
+
+// ---------- Műszakminta ----------
+const TYPE_BY_LETTER = { N: 'nappal', E: 'ejszaka', P: 'pihenes', S: 'szabadsag' };
+const parseDay = s => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); };
+
+$('patternBtn').onclick = () => {
+  const last = new Date(view.getFullYear(), view.getMonth() + 1, 0);
+  $('pt_start').value = selected;
+  $('pt_end').value = ymd(last);
+  $('patternModal').showModal();
+};
+$('ptCancel').onclick = () => $('patternModal').close();
+
+$('patternForm').onsubmit = async e => {
+  e.preventDefault();
+  const pat = $('pt_pattern').value.toUpperCase().replace(/[^NEPS-]/g, '');
+  if (!pat) { alert('Adj meg legalább egy betűt: N, E, P, S vagy -'); return; }
+  const start = parseDay($('pt_start').value), end = parseDay($('pt_end').value);
+  const days = Math.round((end - start) / 86400000) + 1;
+  if (days < 1) { alert('A záró nap legyen a kezdő nap után.'); return; }
+  if (days > 366) { alert('Egyszerre legfeljebb 366 napot lehet kitölteni.'); return; }
+  const existing = new Set(events.map(ev => `${ev.date}|${ev.type}`));
+  const batch = db.batch();
+  let count = 0;
+  for (let i = 0; i < days; i++) {
+    const d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
+    const type = TYPE_BY_LETTER[pat[i % pat.length]];
+    const key = ymd(d);
+    if (!type || existing.has(`${key}|${type}`)) continue;
+    batch.set(db.collection('events').doc(), {
+      title: TYPE_LABELS[type], date: key, start: '', end: '', note: '', type,
+      by: auth.currentUser.email, updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    count++;
+  }
+  if (!count) { alert('Nincs új bejegyzés: a minta vagy már kitöltötte ezeket a napokat.'); return; }
+  try {
+    await batch.commit();
+    $('patternModal').close();
+  } catch (err) {
+    alert('Mentés sikertelen: ' + err.message);
+  }
+};
+
+// ---------- Heti másolás a következő hétre ----------
+$('copyWeek').onclick = async () => {
+  const sel = parseDay(selected);
+  const monday = new Date(sel.getFullYear(), sel.getMonth(), sel.getDate() - ((sel.getDay() + 6) % 7));
+  const sunday = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + 6);
+  const weekEvents = events.filter(e => e.date >= ymd(monday) && e.date <= ymd(sunday));
+  if (!weekEvents.length) { alert('Ebben a hétben nincs bejegyzés.'); return; }
+  const existing = new Set(events.map(e => `${e.date}|${e.type}|${e.title}`));
+  const batch = db.batch();
+  let count = 0;
+  weekEvents.forEach(e => {
+    const d = parseDay(e.date);
+    const nd = ymd(new Date(d.getFullYear(), d.getMonth(), d.getDate() + 7));
+    if (existing.has(`${nd}|${e.type}|${e.title}`)) return;
+    batch.set(db.collection('events').doc(), {
+      title: e.title, date: nd, start: e.start || '', end: e.end || '', note: e.note || '',
+      type: e.type || 'egyeb', by: auth.currentUser.email,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    count++;
+  });
+  if (!count) { alert('A következő hétre már minden bejegyzés megvan.'); return; }
+  if (!confirm(`${count} bejegyzés másolása a következő hétre?`)) return;
+  try {
+    await batch.commit();
+    const nx = new Date(sel.getFullYear(), sel.getMonth(), sel.getDate() + 7);
+    goTo(nx.getFullYear(), nx.getMonth(), nx.getDate());
+  } catch (err) {
+    alert('Másolás sikertelen: ' + err.message);
+  }
+};
 
 // ---------- Időjárás (Open-Meteo, kulcs nélkül) ----------
 const WX_CITY_KEY = 'sfnaptar_city';
