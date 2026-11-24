@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="4GoTherm">
+<meta name="theme-color" content="#1f6feb">
+<title>4GoTherm közös naptár</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:-apple-system,system-ui,sans-serif;background:#f5f7fa;color:#1d2433;padding-bottom:env(safe-area-inset-bottom)}
+.hidden{display:none!important}
+header{display:flex;align-items:center;gap:8px;padding:12px 16px;background:#1f6feb;color:#fff;position:sticky;top:0;z-index:2}
+header h1{font-size:17px;margin:0;flex:1}
+button{font:inherit;border:0;border-radius:8px;padding:8px 12px;cursor:pointer;background:#e6ebf2;color:#1d2433}
+button.primary{background:#1f6feb;color:#fff}
+button.danger{background:#d93025;color:#fff}
+header button{background:rgba(255,255,255,.2);color:#fff}
+main{max-width:900px;margin:0 auto;padding:12px}
+.monthbar{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.monthbar strong{flex:1;text-transform:capitalize}
+#grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.wd{text-align:center;font-size:12px;color:#6b7385;padding:4px}
+.day{background:#fff;border-radius:8px;min-height:64px;padding:4px;cursor:pointer;overflow:hidden;border:2px solid transparent}
+.day.today .num{background:#1f6feb;color:#fff;border-radius:50%}
+.day.sel{border-color:#1f6feb}
+.num{display:inline-block;min-width:22px;text-align:center;font-size:13px;font-weight:600;padding:1px 3px}
+.chip{font-size:11px;background:#e3edff;color:#1f4fa8;border-radius:4px;padding:2px 4px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.more{font-size:11px;color:#6b7385}
+#dayPanel{background:#fff;border-radius:10px;padding:12px;margin-top:12px}
+#dayPanel h2{font-size:16px;margin:0;flex:1;text-transform:capitalize}
+.ev{border-left:4px solid #1f6feb;padding:8px 10px;margin:6px 0;background:#f8faff;border-radius:6px;display:flex;gap:8px;align-items:flex-start}
+.ev>div{flex:1}
+.ev small{color:#6b7385}
+form label{display:block;font-size:13px;margin:10px 0 4px;color:#4a5366}
+form input,form textarea{width:100%;font:inherit;padding:9px;border:1px solid #cfd6e2;border-radius:8px}
+.row{display:flex;gap:8px}
+.row>div{flex:1}
+dialog{border:0;border-radius:12px;width:min(420px,92vw);padding:18px}
+dialog::backdrop{background:rgba(0,0,0,.35)}
+.actions{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
+#login{max-width:340px;margin:12vh auto;background:#fff;padding:24px;border-radius:12px}
+#login h1{font-size:20px;margin-top:0}
+.err{color:#d93025;font-size:13px;min-height:18px}
+</style>
+</head>
+<body>
+
+<section id="login" class="hidden">
+  <h1>4GoTherm naptár</h1>
+  <form id="loginForm">
+    <label>E-mail<input type="email" id="email" required autocomplete="username"></label>
+    <label>Jelszó<input type="password" id="password" required autocomplete="current-password"></label>
+    <div class="err" id="loginErr"></div>
+    <button class="primary" style="width:100%;margin-top:10px">Belépés</button>
+  </form>
+</section>
+
+<div id="app" class="hidden">
+  <header>
+    <h1>4GoTherm közös naptár</h1>
+    <button id="logout">Kilépés</button>
+  </header>
+  <main>
+    <div class="monthbar">
+      <button id="prev">‹</button>
+      <strong id="monthTitle"></strong>
+      <button id="next">›</button>
+      <button id="todayBtn">Ma</button>
+    </div>
+    <div id="grid"></div>
+    <div id="dayPanel">
+      <div style="display:flex;align-items:center;gap:8px">
+        <h2 id="dayTitle"></h2>
+        <button class="primary" id="addBtn">+ Új</button>
+      </div>
+      <div id="dayList"></div>
+    </div>
+  </main>
+</div>
+
+<dialog id="modal">
+  <form id="eventForm">
+    <h3 id="modalTitle" style="margin:0 0 4px"></h3>
+    <label>Megnevezés<input id="f_title" required></label>
+    <label>Dátum<input type="date" id="f_date" required></label>
+    <div class="row">
+      <div><label>Kezdés<input type="time" id="f_start"></label></div>
+      <div><label>Vége<input type="time" id="f_end"></label></div>
+    </div>
+    <label>Megjegyzés<textarea id="f_note" rows="3"></textarea></label>
+    <div class="actions">
+      <button type="button" id="delBtn" class="danger hidden">Törlés</button>
+      <button type="button" id="cancelBtn">Mégse</button>
+      <button class="primary">Mentés</button>
+    </div>
+  </form>
+</dialog>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script>
+// IDE a Firebase-konzolból (Projektbeállítások > Általános > Webalkalmazás) másold be a saját értékeidet:
+firebase.initializeApp({
+  apiKey: "AIzaSyBiSyohj4lQwzbYKknm6_T1PAVtf3Z9w3I",
+  authDomain: "sf-naptar.firebaseapp.com",
+  projectId: "sf-naptar",
+  storageBucket: "sf-naptar.firebasestorage.app",
+  messagingSenderId: "883896912258",
+  appId: "1:883896912258:web:5af63e656c29923ad1a79b"
+});
+
+const auth = firebase.auth();
+const db = firebase.firestore();
+db.enablePersistence({ synchronizeTabs: true }).catch(() => {});
+
+const $ = id => document.getElementById(id);
+const pad = n => String(n).padStart(2, '0');
+const ymd = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const byStart = (a, b) => (a.start || '').localeCompare(b.start || '');
+
+let view = new Date(); view.setDate(1);
+let selected = ymd(new Date());
+let events = [], unsub = null, editingId = null;
+
+auth.onAuthStateChanged(user => {
+  $('login').classList.toggle('hidden', !!user);
+  $('app').classList.toggle('hidden', !user);
+  if (user) subscribe();
+  else { if (unsub) unsub(); unsub = null; events = []; }
+});
+
+$('loginForm').onsubmit = async e => {
+  e.preventDefault();
+  $('loginErr').textContent = '';
+  try {
+    await auth.signInWithEmailAndPassword($('email').value.trim(), $('password').value);
+    $('password').value = '';
+  } catch (err) {
+    $('loginErr').textContent = 'Hibás e-mail vagy jelszó.';
+  }
+};
+$('logout').onclick = () => auth.signOut();
+$('prev').onclick = () => { view.setMonth(view.getMonth() - 1); subscribe(); };
+$('next').onclick = () => { view.setMonth(view.getMonth() + 1); subscribe(); };
+$('todayBtn').onclick = () => { view = new Date(); view.setDate(1); selected = ymd(new Date()); subscribe(); };
+
+function subscribe() {
+  if (unsub) unsub();
+  const y = view.getFullYear(), m = view.getMonth();
+  const from = ymd(new Date(y, m, 1)), to = ymd(new Date(y, m + 1, 0));
+  render();
+  unsub = db.collection('events')
+    .where('date', '>=', from).where('date', '<=', to)
+    .onSnapshot(snap => {
+      events = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      render();
+    }, err => alert('Adatbázis hiba: ' + err.message));
+}
+
+function render() {
+  $('monthTitle').textContent = view.toLocaleDateString('hu-HU', { year: 'numeric', month: 'long' });
+  const grid = $('grid');
+  grid.innerHTML = '';
+  ['H','K','Sze','Cs','P','Szo','V'].forEach(w => grid.insertAdjacentHTML('beforeend', `<div class="wd">${w}</div>`));
+  const offset = (view.getDay() + 6) % 7;
+  for (let i = 0; i < offset; i++) grid.insertAdjacentHTML('beforeend', '<div></div>');
+  const days = new Date(view.getFullYear(), view.getMonth() + 1, 0).getDate();
+  const today = ymd(new Date());
+  for (let d = 1; d <= days; d++) {
+    const key = ymd(new Date(view.getFullYear(), view.getMonth(), d));
+    const list = events.filter(e => e.date === key).sort(byStart);
+    const cell = document.createElement('div');
+    cell.className = 'day' + (key === today ? ' today' : '') + (key === selected ? ' sel' : '');
+    cell.innerHTML = `<span class="num">${d}</span>` +
+      list.slice(0, 3).map(e => `<div class="chip">${esc(e.start)} ${esc(e.title)}</div>`).join('') +
+      (list.length > 3 ? `<div class="more">+${list.length - 3} további</div>` : '');
+    cell.onclick = () => { selected = key; render(); };
+    grid.appendChild(cell);
+  }
+  renderDay();
+}
+
+function renderDay() {
+  const [y, m, d] = selected.split('-').map(Number);
+  $('dayTitle').textContent = new Date(y, m - 1, d).toLocaleDateString('hu-HU', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+  const list = events.filter(e => e.date === selected).sort(byStart);
+  const box = $('dayList');
+  box.innerHTML = list.length ? '' : '<p style="color:#6b7385">Nincs esemény ezen a napon.</p>';
+  list.forEach(e => {
+    const el = document.createElement('div');
+    el.className = 'ev';
+    el.innerHTML = `<div><strong>${esc(e.title)}</strong><br>` +
+      `<small>${esc(e.start)}${e.end ? '–' + esc(e.end) : ''} · utoljára: ${esc(e.by)}</small>` +
+      (e.note ? `<div>${esc(e.note)}</div>` : '') + `</div><button>Szerk.</button>`;
+    el.querySelector('button').onclick = () => openModal(e);
+    box.appendChild(el);
+  });
+}
+
+function openModal(ev) {
+  editingId = ev ? ev.id : null;
+  $('modalTitle').textContent = ev ? 'Esemény szerkesztése' : 'Új esemény';
+  $('f_title').value = ev?.title || '';
+  $('f_date').value = ev?.date || selected;
+  $('f_start').value = ev?.start || '';
+  $('f_end').value = ev?.end || '';
+  $('f_note').value = ev?.note || '';
+  $('delBtn').classList.toggle('hidden', !ev);
+  $('modal').showModal();
+}
+$('addBtn').onclick = () => openModal(null);
+$('cancelBtn').onclick = () => $('modal').close();
+
+$('eventForm').onsubmit = async e => {
+  e.preventDefault();
+  const data = {
+    title: $('f_title').value.trim(),
+    date: $('f_date').value,
+    start: $('f_start').value,
+    end: $('f_end').value,
+    note: $('f_note').value.trim(),
+    by: auth.currentUser.email,
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  };
+  try {
+    if (editingId) await db.collection('events').doc(editingId).update(data);
+    else await db.collection('events').add(data);
+    $('modal').close();
+    selected = data.date;
+    const [y, m] = data.date.split('-').map(Number);
+    if (y !== view.getFullYear() || m - 1 !== view.getMonth()) {
+      view = new Date(y, m - 1, 1);
+      subscribe();
+    } else render();
+  } catch (err) {
+    alert('Mentés sikertelen: ' + err.message);
+  }
+};
+
+$('delBtn').onclick = async () => {
+  if (!editingId || !confirm('Biztosan törlöd ezt az eseményt?')) return;
+  try {
+    await db.collection('events').doc(editingId).delete();
+    $('modal').close();
+  } catch (err) {
+    alert('Törlés sikertelen: ' + err.message);
+  }
+};
+</script>
+</body>
+</html>
