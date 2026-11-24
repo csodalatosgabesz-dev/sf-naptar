@@ -389,12 +389,19 @@ const WMO = {
 };
 const wmo = c => WMO[c] || ['🌡️', 'Ismeretlen'];
 
-async function loadWeather(name) {
+const cityLabel = r => [r.name, r.admin1, r.country].filter(Boolean).join(', ');
+let citySuggest = {};
+let suggestTimer = null;
+
+async function loadWeather(arg) {
   $('wxWeek').innerHTML = '<div class="wx-msg">Betöltés…</div>';
   try {
-    const g = await (await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(name)}&count=1&language=hu&format=json`)).json();
-    const r = g.results && g.results[0];
-    if (!r) { $('wxWeek').innerHTML = '<div class="wx-msg">Nem található ilyen város.</div>'; return; }
+    let r = typeof arg === 'object' ? arg : null;
+    if (!r) {
+      const g = await (await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(arg)}&count=1&language=hu&format=json`)).json();
+      r = g.results && g.results[0];
+      if (!r) { $('wxWeek').innerHTML = '<div class="wx-msg">Nem található ilyen város.</div>'; return; }
+    }
     const url = `https://api.open-meteo.com/v1/forecast?latitude=${r.latitude}&longitude=${r.longitude}` +
       `&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max` +
       `&timezone=Europe%2FBudapest&past_days=14&forecast_days=16`;
@@ -408,8 +415,8 @@ async function loadWeather(name) {
         pp: f.daily.precipitation_probability_max[i]
       };
     });
-    $('city').value = name;
-    localStorage.setItem(WX_CITY_KEY, name);
+    $('city').value = cityLabel(r);
+    localStorage.setItem(WX_CITY_KEY, JSON.stringify(r));
     renderWeek();
   } catch (err) {
     $('wxWeek').innerHTML = '<div class="wx-msg">Az időjárás most nem tölthető be.</div>';
@@ -438,10 +445,38 @@ function renderWeek() {
   box.innerHTML = html + (any ? '' : '<div class="wx-msg">Erre a hétre nincs előrejelzés.</div>');
 }
 
-$('cityBtn').onclick = () => { const v = $('city').value.trim(); if (v) loadWeather(v); };
+// Gépelés közben a világ bármely városát javasolja (Open-Meteo geokódolás)
+$('city').oninput = () => {
+  clearTimeout(suggestTimer);
+  const q = $('city').value.trim();
+  if (q.length < 2) return;
+  suggestTimer = setTimeout(async () => {
+    try {
+      const g = await (await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=8&language=hu&format=json`)).json();
+      citySuggest = {};
+      $('cities').innerHTML = (g.results || []).map(r => {
+        const label = cityLabel(r);
+        citySuggest[label] = r;
+        return `<option value="${esc(label)}">`;
+      }).join('');
+    } catch (err) { /* csendes hiba: nincs javaslat */ }
+  }, 300);
+};
+
+$('cityBtn').onclick = () => {
+  const v = $('city').value.trim();
+  if (!v) return;
+  loadWeather(citySuggest[v] || v);
+};
 $('city').onkeydown = e => { if (e.key === 'Enter') $('cityBtn').click(); };
+
 const savedCity = localStorage.getItem(WX_CITY_KEY);
-if (savedCity) { $('city').value = savedCity; loadWeather(savedCity); }
+if (savedCity) {
+  let arg = savedCity;
+  try { arg = JSON.parse(savedCity); } catch (err) { /* régi, szöveges mentés */ }
+  $('city').value = typeof arg === 'object' ? cityLabel(arg) : arg;
+  loadWeather(arg);
+}
 
 // ---------- Gyors bejegyzések (műszak, pihenő, szabadság) ----------
 const TYPE_LABELS = { nappal: 'Nappal', ejszaka: 'Éjszaka', pihenes: 'Pihenő', szabadsag: 'Szabadság' };
