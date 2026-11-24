@@ -62,6 +62,66 @@ dialog::backdrop{background:rgba(0,0,0,.35)}
 .card{max-width:340px;margin:12vh auto;background:#fff;padding:24px;border-radius:12px}
 .card h1{font-size:20px;margin-top:0}
 .err{color:#d93025;font-size:13px;min-height:18px}
+/* ---- Dizájn (felülírja a fenti alapstílusokat) ---- */
+:root{--primary:#1d4ed8;--bg:#f1f4f9;--card:#fff;--text:#0f172a;--muted:#64748b;--line:#e2e8f0;--radius:16px}
+body{background:var(--bg);color:var(--text);font-size:15px;font-family:-apple-system,"SF Pro Text",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+header{background:linear-gradient(135deg,#1d4ed8,#3b82f6);padding:calc(12px + env(safe-area-inset-top)) 16px 12px;box-shadow:0 2px 12px rgba(29,78,216,.25)}
+header h1{font-size:18px;font-weight:700;letter-spacing:.2px}
+header button{background:rgba(255,255,255,.18);border-radius:10px;font-weight:600}
+button{border-radius:10px;font-weight:600;min-height:40px;transition:transform .08s,filter .15s}
+button:active{transform:scale(.97)}
+button:hover{filter:brightness(.97)}
+button.primary{background:var(--primary);box-shadow:0 2px 8px rgba(29,78,216,.3)}
+main{padding:14px}
+.weather,#dayPanel,.card{background:var(--card);border-radius:var(--radius);border:1px solid var(--line);box-shadow:0 1px 2px rgba(15,23,42,.05),0 6px 20px rgba(15,23,42,.06)}
+.weather{padding:12px;margin-bottom:14px}
+.wx-bar{gap:8px}
+.wx-bar input,.monthbar select,.jumprow input,form input,form textarea{border-radius:10px;border:1px solid var(--line);background:#fff;color:var(--text);min-height:42px}
+.wx-day{border-radius:12px;background:#f8fafc;border:1px solid var(--line);padding:8px 2px}
+.wx-day.sel{outline:none;border-color:var(--primary);box-shadow:0 0 0 2px rgba(29,78,216,.2)}
+.monthbar{gap:8px;margin-bottom:10px}
+.monthbar strong{font-size:16px;font-weight:700}
+.monthbar button{min-width:40px}
+.wd{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);padding:6px 4px}
+#grid{gap:6px}
+.day{background:var(--card);border-radius:12px;min-height:78px;padding:6px;border:1.5px solid transparent;box-shadow:0 1px 2px rgba(15,23,42,.04)}
+.day.sel{border-color:var(--primary);box-shadow:0 0 0 3px rgba(29,78,216,.15)}
+.day.today .num{background:var(--primary);color:#fff;border-radius:999px}
+.day.holiday{background:#fff5f5}
+.num{font-size:13px;font-weight:700;min-width:24px;padding:2px 4px}
+.chip{border-radius:6px;font-size:10.5px;font-weight:600;padding:2px 5px;margin-top:3px}
+.hol{font-size:9.5px;font-weight:600}
+#dayPanel{padding:14px;margin-top:14px}
+#dayPanel h2{font-size:16px;font-weight:700}
+.quick{gap:8px}
+.quick button{flex:1 1 0;min-width:0;min-height:44px;border-radius:999px;font-weight:700}
+.ev{border-radius:12px;border-left-width:5px;background:#f8fafc;padding:10px 12px;margin:8px 0}
+.ev small{color:var(--muted)}
+.t-nappal{background:#fff4c2;color:#7a5a00}
+.t-ejszaka{background:#2d3a5c;color:#fff}
+.t-pihenes{background:#e5e7eb;color:#374151}
+.t-szabadsag{background:#d1f7dc;color:#136f35}
+.t-egyeb{background:#e3edff;color:#1f4fa8}
+dialog{border-radius:20px;box-shadow:0 20px 60px rgba(0,0,0,.25);background:var(--card);color:var(--text)}
+dialog::backdrop{background:rgba(15,23,42,.45);backdrop-filter:blur(3px)}
+form label{font-size:13px;font-weight:600;color:var(--muted)}
+.card{border-radius:20px;padding:26px;box-shadow:0 10px 40px rgba(15,23,42,.12)}
+.card h1{font-size:22px;font-weight:800;color:var(--primary)}
+.err{font-size:13px}
+@media (prefers-color-scheme: dark){
+  :root{--bg:#0b1220;--card:#131c2e;--text:#e2e8f0;--muted:#94a3b8;--line:#243047}
+  button{background:#1e293b;color:var(--text)}
+  header button{background:rgba(255,255,255,.18);color:#fff}
+  .wx-bar input,.monthbar select,.jumprow input,form input,form textarea{background:#0f1828;color:var(--text);border-color:var(--line)}
+  .wx-day,.ev{background:#0f1828}
+  .day.holiday{background:#2a1820}
+  .t-nappal{background:#4a3a0a;color:#fde68a}
+  .t-ejszaka{background:#1e2a4a;color:#c7d2fe}
+  .t-pihenes{background:#2b3240;color:#d1d5db}
+  .t-szabadsag{background:#123d24;color:#86efac}
+  .t-egyeb{background:#1e3a8a;color:#bfdbfe}
+  .card h1{color:#93c5fd}
+}
 </style>
 </head>
 <body>
@@ -168,6 +228,7 @@ const db = firebase.firestore();
 db.enablePersistence({ synchronizeTabs: true }).catch(() => {});
 
 const PIN_KEY = 'sfnaptar_pin_hash';
+const PIN_LEN_KEY = 'sfnaptar_pin_len';
 const MONTHS = ['január','február','március','április','május','június','július','augusztus','szeptember','október','november','december'];
 
 const $ = id => document.getElementById(id);
@@ -233,14 +294,14 @@ function unlock() {
   render();
 }
 
-$('pinForm').onsubmit = async e => {
-  e.preventDefault();
+async function handlePin() {
   const p1 = $('pin1').value.trim();
   if (!/^\d{4,8}$/.test(p1)) { $('pinErr').textContent = 'A PIN 4–8 számjegyből álljon.'; return; }
   const h = await sha256(p1);
   if (pinMode === 'setup') {
     if ($('pin2').value.trim() !== p1) { $('pinErr').textContent = 'A két PIN nem egyezik.'; return; }
     localStorage.setItem(PIN_KEY, h);
+    localStorage.setItem(PIN_LEN_KEY, String(p1.length));
     unlock();
   } else if (h === localStorage.getItem(PIN_KEY)) {
     unlock();
@@ -250,6 +311,12 @@ $('pinForm').onsubmit = async e => {
   }
 };
 
+$('pinForm').onsubmit = e => { e.preventDefault(); handlePin(); };
+// Feloldás automatikusan, amint a beírt számjegyek száma eléri a PIN hosszát
+$('pin1').oninput = () => {
+  const len = Number(localStorage.getItem(PIN_LEN_KEY));
+  if (pinMode === 'unlock' && len && $('pin1').value.length === len) handlePin();
+};
 $('pinLogout').onclick = () => auth.signOut();
 $('logout').onclick = () => auth.signOut();
 $('lockBtn').onclick = () => { unlocked = false; showPin(); };
