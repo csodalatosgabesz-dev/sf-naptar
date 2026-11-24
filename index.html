@@ -30,6 +30,13 @@ main{max-width:900px;margin:0 auto;padding:12px}
 .num{display:inline-block;min-width:22px;text-align:center;font-size:13px;font-weight:600;padding:1px 3px}
 .chip{font-size:11px;background:#e3edff;color:#1f4fa8;border-radius:4px;padding:2px 4px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .more{font-size:11px;color:#6b7385}
+.t-nappal{background:#fff4c2;color:#7a5a00}
+.t-ejszaka{background:#2d3a5c;color:#fff}
+.t-pihenes{background:#e5e7eb;color:#374151}
+.t-szabadsag{background:#d1f7dc;color:#136f35}
+.t-egyeb{background:#e3edff;color:#1f4fa8}
+.quick{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.quick button{flex:1;min-width:90px}
 #dayPanel{background:#fff;border-radius:10px;padding:12px;margin-top:12px}
 #dayPanel h2{font-size:16px;margin:0;flex:1;text-transform:capitalize}
 .ev{border-left:4px solid #1f6feb;padding:8px 10px;margin:6px 0;background:#f8faff;border-radius:6px;display:flex;gap:8px;align-items:flex-start;cursor:pointer}
@@ -94,6 +101,12 @@ dialog::backdrop{background:rgba(0,0,0,.35)}
         <h2 id="dayTitle"></h2>
         <button class="primary" id="addBtn">+ Új</button>
       </div>
+      <div class="quick">
+        <button data-type="nappal" class="t-nappal">Nappal</button>
+        <button data-type="ejszaka" class="t-ejszaka">Éjszaka</button>
+        <button data-type="pihenes" class="t-pihenes">Pihenő</button>
+        <button data-type="szabadsag" class="t-szabadsag">Szabadság</button>
+      </div>
       <div id="dayList"></div>
     </div>
   </main>
@@ -145,7 +158,7 @@ const byStart = (a, b) => (a.date + (a.start || '')).localeCompare(b.date + (b.s
 
 let view = new Date(); view.setDate(1);
 let selected = ymd(new Date());
-let events = [], unsub = null, editingId = null;
+let events = [], unsub = null, editingId = null, editingType = 'egyeb';
 let unlocked = false, pinMode = 'setup';
 
 // ---------- Bejelentkezés és PIN ----------
@@ -281,7 +294,7 @@ function render() {
     const cell = document.createElement('div');
     cell.className = 'day' + (key === today ? ' today' : '') + (key === selected ? ' sel' : '');
     cell.innerHTML = `<span class="num">${d}</span>` +
-      list.slice(0, 3).map(e => `<div class="chip">${esc(e.start)} ${esc(e.title)}</div>`).join('') +
+      list.slice(0, 3).map(e => `<div class="chip t-${e.type || 'egyeb'}">${esc(e.start)} ${esc(e.title)}</div>`).join('') +
       (list.length > 3 ? `<div class="more">+${list.length - 3} további</div>` : '');
     cell.onclick = () => { selected = key; render(); };
     grid.appendChild(cell);
@@ -337,9 +350,45 @@ function renderDay() {
 
 $('search').oninput = () => renderDay();
 
+// ---------- Gyors bejegyzések (műszak, pihenő, szabadság) ----------
+const TYPE_LABELS = { nappal: 'Nappal', ejszaka: 'Éjszaka', pihenes: 'Pihenő', szabadsag: 'Szabadság' };
+
+function getName() {
+  let n = localStorage.getItem('sfnaptar_name');
+  if (!n) {
+    n = (prompt('Add meg a neved (ez jelenik meg a bejegyzésnél):') || '').trim();
+    if (!n) return null;
+    localStorage.setItem('sfnaptar_name', n);
+  }
+  return n;
+}
+
+async function quickAdd(type) {
+  const name = getName();
+  if (!name) return;
+  const data = {
+    title: `${TYPE_LABELS[type]} – ${name}`,
+    date: selected,
+    start: '',
+    end: '',
+    note: '',
+    type,
+    by: auth.currentUser.email,
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  };
+  try {
+    await db.collection('events').add(data);
+  } catch (err) {
+    alert('Mentés sikertelen: ' + err.message);
+  }
+}
+
+document.querySelectorAll('[data-type]').forEach(b => b.onclick = () => quickAdd(b.dataset.type));
+
 // ---------- Esemény űrlap ----------
 function openModal(ev) {
   editingId = ev ? ev.id : null;
+  editingType = ev?.type || 'egyeb';
   $('modalTitle').textContent = ev ? 'Esemény szerkesztése' : 'Új esemény';
   $('f_title').value = ev?.title || '';
   $('f_date').value = ev?.date || selected;
@@ -360,6 +409,7 @@ $('eventForm').onsubmit = async e => {
     start: $('f_start').value,
     end: $('f_end').value,
     note: $('f_note').value.trim(),
+    type: editingType,
     by: auth.currentUser.email,
     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
   };
