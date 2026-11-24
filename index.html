@@ -48,6 +48,30 @@ main{max-width:900px;margin:0 auto;padding:12px}
 .next{background:linear-gradient(135deg,#1d4ed8,#3b82f6);color:#fff;border-radius:14px;padding:10px 14px;font-size:14px;margin-bottom:8px}
 .sumrow{display:flex;align-items:center;gap:8px;font-size:13px;color:#64748b}
 .hint{font-size:12px;color:#64748b;margin:4px 0 0}
+#wxHero{margin-bottom:12px}
+.wx-hero{display:flex;align-items:center;gap:14px;border-radius:20px;padding:16px;color:#fff;background:linear-gradient(135deg,#60a5fa,#2563eb);box-shadow:0 10px 28px rgba(37,99,235,.28)}
+.wx-hero.bg-warm{background:linear-gradient(135deg,#fdba74,#f59e0b)}
+.wx-hero.bg-rain{background:linear-gradient(135deg,#64748b,#334155)}
+.wx-hero.bg-snow{background:linear-gradient(135deg,#bfdbfe,#e0f2fe);color:#0f172a}
+.wx-hero.bg-fog{background:linear-gradient(135deg,#94a3b8,#cbd5e1);color:#0f172a}
+.wx-hero.bg-storm{background:linear-gradient(135deg,#4c1d95,#1e1b4b)}
+.hero-ico{font-size:52px;line-height:1;width:64px;text-align:center;flex:none}
+.hero-txt{flex:1;min-width:0}
+.hero-day{font-size:13px;opacity:.85;text-transform:capitalize}
+.hero-label{font-size:18px;font-weight:700;margin-top:2px}
+.hero-temp{text-align:right;flex:none}
+.hero-temp .big{font-size:30px;font-weight:800;line-height:1}
+.hero-temp .small{font-size:12px;opacity:.9;margin-top:4px}
+.ico-sun{animation:pulse 3.5s ease-in-out infinite}
+.ico-partly,.ico-cloud,.ico-fog{animation:drift 5s ease-in-out infinite alternate}
+.ico-rain{animation:bob 1.6s ease-in-out infinite}
+.ico-snow{animation:bob 3s ease-in-out infinite}
+.ico-storm{animation:flash 1.4s steps(2,end) infinite}
+@keyframes pulse{0%,100%{transform:scale(.94)}50%{transform:scale(1.06)}}
+@keyframes drift{from{transform:translateX(-5px)}to{transform:translateX(5px)}}
+@keyframes bob{0%,100%{transform:translateY(-3px)}50%{transform:translateY(4px)}}
+@keyframes flash{50%{opacity:.4}}
+@media (prefers-reduced-motion: reduce){.hero-ico{animation:none!important}}
 #pin{text-align:center}
 .dots{display:flex;justify-content:center;gap:14px;margin:18px 0 6px;min-height:16px}
 .dot{width:14px;height:14px;border-radius:50%;border:2px solid var(--primary)}
@@ -164,6 +188,7 @@ form label{font-size:13px;font-weight:600;color:var(--muted)}
     <button id="logout">Kilépés</button>
   </header>
   <main>
+    <div id="wxHero"></div>
     <section id="weather" class="weather">
       <div class="wx-bar">
         <input id="city" list="cities" placeholder="Város (pl. Szeged)" aria-label="Város">
@@ -660,7 +685,33 @@ async function loadWeather(arg) {
   }
 }
 
+const WX_BG = { sun: 'warm', partly: '', cloud: '', fog: 'fog', rain: 'rain', snow: 'snow', storm: 'storm' };
+const wxCat = c =>
+  c <= 1 ? 'sun' : c === 2 ? 'partly' : c === 3 ? 'cloud' : (c === 45 || c === 48) ? 'fog' :
+  (c >= 51 && c <= 67) || (c >= 80 && c <= 82) ? 'rain' :
+  (c >= 71 && c <= 77) || c === 85 || c === 86 ? 'snow' : c >= 95 ? 'storm' : 'cloud';
+
+// Kiválasztott nap időjárása a felső sávban, animált ikonnal
+function renderHero() {
+  const box = $('wxHero');
+  const dayName = parseDay(selected).toLocaleDateString('hu-HU', { weekday: 'long', month: 'long', day: 'numeric' });
+  const w = wxDaily && wxDaily[selected];
+  if (!w) {
+    const msg = wxDaily ? 'Erre a napra nincs előrejelzés' : 'Válassz várost az időjárás megjelenítéséhez';
+    box.innerHTML = `<div class="wx-hero"><div class="hero-txt"><div class="hero-day">${esc(dayName)}</div><div class="hero-label" style="font-size:15px">${msg}</div></div></div>`;
+    return;
+  }
+  const cat = wxCat(w.code);
+  const [ico, label] = wmo(w.code);
+  box.innerHTML = `<div class="wx-hero bg-${WX_BG[cat]}">` +
+    `<div class="hero-ico ico-${cat}">${ico}</div>` +
+    `<div class="hero-txt"><div class="hero-day">${esc(dayName)}</div><div class="hero-label">${esc(label)}</div></div>` +
+    `<div class="hero-temp"><div class="big">${Math.round(w.max)}°</div>` +
+    `<div class="small">min ${Math.round(w.min)}° · ☔ ${w.pp ?? '–'}%</div></div></div>`;
+}
+
 function renderWeek() {
+  renderHero();
   const box = $('wxWeek');
   if (!wxDaily) { box.innerHTML = '<div class="wx-msg">Válassz várost a fenti mezőben.</div>'; return; }
   const [y, m, d] = selected.split('-').map(Number);
