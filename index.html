@@ -252,6 +252,24 @@ dialog::backdrop{background:rgba(15,23,42,.4);backdrop-filter:blur(2px)}
 .wx-clock span{flex:1 1 150px;background:var(--bg);border-radius:14px;padding:10px 14px;font-size:13px}
 .wx-clock b{display:block;font-size:30px;line-height:1.1;margin-top:2px}
 @media (max-width:600px){.wx-clock b{font-size:26px}}
+/* ---- Modern mozgás ---- */
+@keyframes inFromRight{from{opacity:0;transform:translateX(44px) scale(.98)}to{opacity:1;transform:none}}
+@keyframes inFromLeft{from{opacity:0;transform:translateX(-44px) scale(.98)}to{opacity:1;transform:none}}
+#grid.enter-r{animation:inFromRight .42s cubic-bezier(.2,.8,.2,1)}
+#grid.enter-l{animation:inFromLeft .42s cubic-bezier(.2,.8,.2,1)}
+#grid{touch-action:pan-y}
+.day{transition:transform .2s cubic-bezier(.2,.8,.2,1),box-shadow .2s,border-color .2s,background .2s}
+.day:active{transform:scale(.94)}
+.day.sel{animation:pop .34s cubic-bezier(.2,.8,.2,1)}
+@keyframes pop{0%{transform:scale(.9)}60%{transform:scale(1.05)}100%{transform:scale(1)}}
+@keyframes rise{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+.weather,#dayPanel,.wx-hero{animation:rise .55s cubic-bezier(.2,.8,.2,1) both}
+.ev{animation:rise .38s cubic-bezier(.2,.8,.2,1) both}
+.chip{transition:transform .2s}
+.day:hover .chip{transform:translateX(1px)}
+button{transition:transform .12s cubic-bezier(.2,.8,.2,1),filter .15s,background .2s}
+button:active{transform:scale(.95)}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
 </style>
 </head>
 <body>
@@ -524,16 +542,44 @@ function subscribe() {
 }
 
 // ---------- Navigáció: év, hónap, nap ----------
-function goTo(y, m, day) {
+function goTo(y, m, day, dir = 0) {
   const days = new Date(y, m + 1, 0).getDate();
   const d = Math.min(day || Number(selected.split('-')[2]), days);
   view = new Date(y, m, 1);
   selected = ymd(new Date(y, m, d));
   render();
+  if (dir) animateGrid(dir);
 }
 
-$('prev').onclick = () => { const d = new Date(view.getFullYear(), view.getMonth() - 1, 1); goTo(d.getFullYear(), d.getMonth()); };
-$('next').onclick = () => { const d = new Date(view.getFullYear(), view.getMonth() + 1, 1); goTo(d.getFullYear(), d.getMonth()); };
+// Rács animált váltása: dir > 0 jobbról érkezik (következő hónap), dir < 0 balról (előző hónap)
+function animateGrid(dir) {
+  const g = $('grid');
+  g.classList.remove('enter-r', 'enter-l');
+  void g.offsetWidth; // újraindítja az animációt
+  g.classList.add(dir > 0 ? 'enter-r' : 'enter-l');
+}
+
+const stepMonth = dir => {
+  const d = new Date(view.getFullYear(), view.getMonth() + dir, 1);
+  goTo(d.getFullYear(), d.getMonth(), undefined, dir);
+};
+$('prev').onclick = () => stepMonth(-1);
+$('next').onclick = () => stepMonth(1);
+
+// Húzással hónapot váltani: vízszintes húzás a naptáron
+let swipeStart = null;
+const gridEl = $('grid');
+gridEl.addEventListener('touchstart', e => {
+  const t = e.touches[0];
+  swipeStart = { x: t.clientX, y: t.clientY };
+}, { passive: true });
+gridEl.addEventListener('touchend', e => {
+  if (!swipeStart) return;
+  const t = e.changedTouches[0];
+  const dx = t.clientX - swipeStart.x, dy = t.clientY - swipeStart.y;
+  swipeStart = null;
+  if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) stepMonth(dx < 0 ? 1 : -1);
+}, { passive: true });
 $('monthSel').onchange = () => goTo(view.getFullYear(), Number($('monthSel').value));
 $('yearSel').onchange = () => goTo(Number($('yearSel').value), view.getMonth());
 $('todayBtn').onclick = () => { const t = new Date(); goTo(t.getFullYear(), t.getMonth(), t.getDate()); $('search').value = ''; render(); };
