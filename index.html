@@ -270,6 +270,22 @@ dialog::backdrop{background:rgba(15,23,42,.4);backdrop-filter:blur(2px)}
 button{transition:transform .12s cubic-bezier(.2,.8,.2,1),filter .15s,background .2s}
 button:active{transform:scale(.95)}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+/* ---- Erős, jól látható típusszínek ---- */
+.t-nappal{background:#facc15!important;color:#422006!important}
+.t-ejszaka{background:#4338ca!important;color:#fff!important}
+.t-pihenes{background:#06b6d4!important;color:#042f2e!important}
+.t-szabadsag{background:#22c55e!important;color:#052e16!important}
+.t-egyeb{background:#ec4899!important;color:#fff!important}
+.chip{font-size:12px;font-weight:700;border-radius:7px;padding:3px 6px;margin-top:3px;box-shadow:0 2px 6px rgba(15,23,42,.18);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chip .cs{display:none;font-weight:900}
+.quick button{box-shadow:0 6px 16px rgba(15,23,42,.18);border:0}
+@media (max-width:600px){
+  .day{min-height:60px}
+  .chip{font-size:9px;height:auto;padding:2px 2px;margin-top:3px;text-align:center;letter-spacing:.3px;border-radius:5px;box-shadow:none}
+  .chip .cs{display:inline}
+  .chip .cf{display:none}
+  .quick button{font-size:13px;letter-spacing:.2px}
+}
 </style>
 </head>
 <body>
@@ -621,7 +637,7 @@ function render() {
     const cell = document.createElement('div');
     cell.className = 'day' + (key === today ? ' today' : '') + (key === selected ? ' sel' : '') + (HOL[key] ? ' holiday' : '');
     cell.innerHTML = `<span class="num">${d}</span>${HOL[key] ? `<div class="hol">${esc(HOL[key])}</div>` : ''}` +
-      list.slice(0, 3).map(e => `<div class="chip t-${e.type || 'egyeb'}">${esc(e.start)} ${esc(e.title)}</div>`).join('') +
+      list.slice(0, 3).map(e => `<div class="chip t-${e.type || 'egyeb'}"><b class="cs">${SHORT_TYPE[e.type] || '•'}</b><span class="cf">${esc(e.start)} ${esc(e.title)}</span></div>`).join('') +
       (list.length > 3 ? `<div class="more">+${list.length - 3} további</div>` : '');
     cell.onclick = () => { selected = key; render(); };
     grid.appendChild(cell);
@@ -957,6 +973,7 @@ if (savedCity) {
 
 // ---------- Gyors bejegyzések (műszak, pihenő, szabadság) ----------
 const TYPE_LABELS = { nappal: 'Nappal', ejszaka: 'Éjszaka', pihenes: 'Pihenő', szabadsag: 'Szabadság' };
+const SHORT_TYPE = { nappal: 'NAP', ejszaka: 'ÉJ', pihenes: 'PIH', szabadsag: 'SZA' };
 
 // ---------- Magyar munkaszüneti napok (évente számolva) ----------
 const HOLIDAYS_FIXED = {
