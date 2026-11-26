@@ -306,6 +306,20 @@ button:active{transform:scale(.95)}
   .day.has-szabadsag{background:linear-gradient(180deg,#052e16,#131c2e)}
   .day.has-egyeb{background:linear-gradient(180deg,#4a044e,#131c2e)}
 }
+/* ---- Havi naptár: jól látható színezett napok ---- */
+.day.has-nappal{background:linear-gradient(180deg,#fde68a,#fef3c7);box-shadow:inset 0 4px 0 #f59e0b}
+.day.has-ejszaka{background:linear-gradient(180deg,#a5b4fc,#e0e7ff);box-shadow:inset 0 4px 0 #4338ca}
+.day.has-pihenes{background:linear-gradient(180deg,#67e8f9,#cffafe);box-shadow:inset 0 4px 0 #0891b2}
+.day.has-szabadsag{background:linear-gradient(180deg,#86efac,#dcfce7);box-shadow:inset 0 4px 0 #16a34a}
+.day.has-egyeb{background:linear-gradient(180deg,#f9a8d4,#fce7f3);box-shadow:inset 0 4px 0 #db2777}
+.day.has-nappal.holiday,.day.has-ejszaka.holiday,.day.has-pihenes.holiday,.day.has-szabadsag.holiday,.day.has-egyeb.holiday{background:linear-gradient(180deg,#fecaca,#fff)}
+@media (prefers-color-scheme: dark){
+  .day.has-nappal{background:linear-gradient(180deg,#78350f,#1c1917)}
+  .day.has-ejszaka{background:linear-gradient(180deg,#3730a3,#1e1b4b)}
+  .day.has-pihenes{background:linear-gradient(180deg,#155e75,#082f49)}
+  .day.has-szabadsag{background:linear-gradient(180deg,#166534,#052e16)}
+  .day.has-egyeb{background:linear-gradient(180deg,#9d174d,#4a044e)}
+}
 </style>
 </head>
 <body>
