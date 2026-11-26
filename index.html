@@ -286,6 +286,26 @@ button:active{transform:scale(.95)}
   .chip .cf{display:none}
   .quick button{font-size:13px;letter-spacing:.2px}
 }
+/* ---- Még színesebben: átmenetes színek és színezett napok ---- */
+.t-nappal{background:linear-gradient(135deg,#fde047,#f59e0b)!important;color:#451a03!important}
+.t-ejszaka{background:linear-gradient(135deg,#6366f1,#7c3aed)!important;color:#fff!important}
+.t-pihenes{background:linear-gradient(135deg,#22d3ee,#0891b2)!important;color:#fff!important}
+.t-szabadsag{background:linear-gradient(135deg,#4ade80,#16a34a)!important;color:#fff!important}
+.t-egyeb{background:linear-gradient(135deg,#f472b6,#db2777)!important;color:#fff!important}
+.chip{background-image:linear-gradient(135deg,rgba(255,255,255,.28),rgba(255,255,255,0))}
+.day.has-nappal{background:linear-gradient(180deg,#fef9c3,#fff)}
+.day.has-ejszaka{background:linear-gradient(180deg,#e0e7ff,#fff)}
+.day.has-pihenes{background:linear-gradient(180deg,#cffafe,#fff)}
+.day.has-szabadsag{background:linear-gradient(180deg,#dcfce7,#fff)}
+.day.has-egyeb{background:linear-gradient(180deg,#fce7f3,#fff)}
+.day.has-nappal.holiday,.day.has-ejszaka.holiday,.day.has-pihenes.holiday,.day.has-szabadsag.holiday,.day.has-egyeb.holiday{background:linear-gradient(180deg,#fee2e2,#fff)}
+@media (prefers-color-scheme: dark){
+  .day.has-nappal{background:linear-gradient(180deg,#3d3208,#131c2e)}
+  .day.has-ejszaka{background:linear-gradient(180deg,#1e1b4b,#131c2e)}
+  .day.has-pihenes{background:linear-gradient(180deg,#083344,#131c2e)}
+  .day.has-szabadsag{background:linear-gradient(180deg,#052e16,#131c2e)}
+  .day.has-egyeb{background:linear-gradient(180deg,#4a044e,#131c2e)}
+}
 </style>
 </head>
 <body>
@@ -635,7 +655,8 @@ function render() {
     const key = ymd(new Date(view.getFullYear(), view.getMonth(), d));
     const list = events.filter(e => e.date === key).sort(byStart);
     const cell = document.createElement('div');
-    cell.className = 'day' + (key === today ? ' today' : '') + (key === selected ? ' sel' : '') + (HOL[key] ? ' holiday' : '');
+    cell.className = 'day' + (key === today ? ' today' : '') + (key === selected ? ' sel' : '') + (HOL[key] ? ' holiday' : '') +
+      [...new Set(list.map(e => e.type || 'egyeb'))].map(t => ` has-${t}`).join('');
     cell.innerHTML = `<span class="num">${d}</span>${HOL[key] ? `<div class="hol">${esc(HOL[key])}</div>` : ''}` +
       list.slice(0, 3).map(e => `<div class="chip t-${e.type || 'egyeb'}"><b class="cs">${SHORT_TYPE[e.type] || '•'}</b><span class="cf">${esc(e.start)} ${esc(e.title)}</span></div>`).join('') +
       (list.length > 3 ? `<div class="more">+${list.length - 3} további</div>` : '');
