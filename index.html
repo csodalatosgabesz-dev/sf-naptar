@@ -206,7 +206,7 @@ body,button,.key{touch-action:manipulation}
 /* ---- iPhone-first finomítás ---- */
 html,body{overscroll-behavior-y:none;-webkit-tap-highlight-color:transparent}
 body{padding-left:env(safe-area-inset-left);padding-right:env(safe-area-inset-right)}
-header{background:linear-gradient(135deg,rgba(29,78,216,.96),rgba(59,130,246,.92));-webkit-backdrop-filter:saturate(180%) blur(14px);backdrop-filter:saturate(180%) blur(14px)}
+header{background:var(--hgrad);color:var(--hfg);-webkit-backdrop-filter:saturate(180%) blur(14px);backdrop-filter:saturate(180%) blur(14px)}
 input[type=date],input[type=time]{-webkit-appearance:none;appearance:none}
 select{-webkit-appearance:none;appearance:none;padding-right:28px;background-image:linear-gradient(45deg,transparent 50%,#64748b 50%),linear-gradient(135deg,#64748b 50%,transparent 50%);background-position:calc(100% - 15px) 55%,calc(100% - 10px) 55%;background-size:5px 5px;background-repeat:no-repeat}
 
@@ -351,6 +351,35 @@ details.weather[open] > .wx-sum{margin-bottom:10px}
 @media (prefers-color-scheme: dark){.day.sel{outline-color:#f8fafc}}
 .day.today .num{background:none!important;color:#1d4ed8;border-radius:0}
 .day.today .num::after{content:'';display:block;width:5px;height:5px;margin:2px auto 0;border-radius:50%;background:#1d4ed8}
+/* ---- Témák és látvány ---- */
+:root{--hgrad:linear-gradient(135deg,#1d4ed8,#3b82f6);--hfg:#fff;--tgrad:linear-gradient(135deg,#1d4ed8,#3b82f6);--glow:rgba(59,130,246,.16)}
+html[data-theme=naplemente]{--primary:#ea580c;--hgrad:linear-gradient(135deg,#f97316,#ec4899,#8b5cf6);--tgrad:linear-gradient(135deg,#ea580c,#ec4899,#8b5cf6);--glow:rgba(249,115,22,.22)}
+html[data-theme=erdo]{--primary:#15803d;--hgrad:linear-gradient(135deg,#166534,#16a34a,#84cc16);--tgrad:linear-gradient(135deg,#166534,#16a34a,#65a30d);--glow:rgba(34,197,94,.18)}
+html[data-theme=neon]{--primary:#a855f7;--hgrad:linear-gradient(135deg,#1e1b4b,#7e22ce,#0e7490);--tgrad:linear-gradient(135deg,#c084fc,#22d3ee);--glow:rgba(168,85,247,.3);--bg:#0b0a1a;--card:#15102e;--text:#f1f5f9;--muted:#a5b4fc;--line:#2e2660}
+html[data-theme=pasztell]{--primary:#db2777;--hgrad:linear-gradient(135deg,#fbcfe8,#c4b5fd,#bae6fd);--hfg:#1e1b4b;--tgrad:linear-gradient(135deg,#be185d,#7c3aed,#0369a1);--glow:rgba(244,114,182,.24);--bg:#fdf4ff}
+html{background:var(--bg)}
+body::before{content:'';position:fixed;inset:-25%;z-index:-1;pointer-events:none;background:radial-gradient(circle at 18% 22%,var(--glow),transparent 38%),radial-gradient(circle at 82% 78%,var(--glow),transparent 42%);animation:roam 22s ease-in-out infinite alternate}
+@keyframes roam{from{transform:translate(0,0) rotate(0deg)}to{transform:translate(4%,3%) rotate(6deg)}}
+header{animation:hshift 12s ease infinite;background-size:180% 180%}
+@keyframes hshift{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+header{color:var(--hfg)}
+header button{color:var(--hfg)}
+.hmenu summary{color:var(--hfg)}
+.next{background:var(--hgrad);color:var(--hfg)}
+.mtitle{display:inline-block;font-size:26px;font-weight:800;letter-spacing:-.4px;text-transform:capitalize;margin:0 2px 8px;background:var(--tgrad);-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent}
+.mtitle.flip{animation:flipIn .45s cubic-bezier(.2,.8,.2,1)}
+@keyframes flipIn{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:none}}
+@media (max-width:600px){.mtitle{font-size:22px}}
+@media (hover:hover){.day:hover{transform:translateY(-2px);box-shadow:0 10px 20px rgba(15,23,42,.12)}}
+/* Neon téma: sötét felületek a napoknál is */
+html[data-theme=neon] .day{background:var(--card)}
+html[data-theme=neon] .day.has-nappal{background:linear-gradient(180deg,#78350f,var(--card))}
+html[data-theme=neon] .day.has-ejszaka{background:linear-gradient(180deg,#312e81,var(--card))}
+html[data-theme=neon] .day.has-pihenes{background:linear-gradient(180deg,#155e75,var(--card))}
+html[data-theme=neon] .day.has-szabadsag{background:linear-gradient(180deg,#14532d,var(--card))}
+html[data-theme=neon] .day.has-egyeb{background:linear-gradient(180deg,#701a75,var(--card))}
+html[data-theme=neon] .day.holiday{background:#2a0f24}
+html[data-theme=neon] .ev,html[data-theme=neon] .wx-day{background:var(--bg)}
 </style>
 </head>
 <body>
@@ -381,6 +410,7 @@ details.weather[open] > .wx-sum{margin-bottom:10px}
     <details class="hmenu">
       <summary>⋯</summary>
       <div class="hpanel">
+        <button id="themeBtn">🎨 Téma: <span id="themeName"></span></button>
         <button id="lockBtn">🔒 Zárolás</button>
         <button id="logout">Kilépés</button>
       </div>
@@ -400,6 +430,7 @@ details.weather[open] > .wx-sum{margin-bottom:10px}
       </div>
       <div id="wxWeek" class="wx-week"></div>
     </details>
+    <div id="mtitle" class="mtitle"></div>
     <div class="monthbar">
       <button id="prev">‹</button>
       <select id="monthSel" aria-label="Hónap"></select>
@@ -619,6 +650,22 @@ $('pinLogout').onclick = () => auth.signOut();
 $('logout').onclick = () => auth.signOut();
 $('lockBtn').onclick = () => { unlocked = false; showPin(); };
 
+// ---------- Témák ----------
+const THEME_ORDER = ['kek', 'naplemente', 'erdo', 'neon', 'pasztell'];
+const THEME_NAMES = { kek: 'Kék', naplemente: 'Naplemente', erdo: 'Erdő', neon: 'Neon', pasztell: 'Pasztell' };
+function applyTheme(t) {
+  document.documentElement.dataset.theme = t;
+  $('themeName').textContent = THEME_NAMES[t];
+}
+let savedTheme = localStorage.getItem('sfnaptar_theme');
+applyTheme(THEME_ORDER.includes(savedTheme) ? savedTheme : 'kek');
+$('themeBtn').onclick = () => {
+  const i = THEME_ORDER.indexOf(document.documentElement.dataset.theme);
+  const next = THEME_ORDER[(i + 1) % THEME_ORDER.length];
+  localStorage.setItem('sfnaptar_theme', next);
+  applyTheme(next);
+};
+
 // ---------- Adatok ----------
 function subscribe() {
   if (unsub) unsub();
@@ -653,20 +700,42 @@ const stepMonth = dir => {
 $('prev').onclick = () => stepMonth(-1);
 $('next').onclick = () => stepMonth(1);
 
-// Húzással hónapot váltani: vízszintes húzás a naptáron
+// Húzással hónapot váltani: a rács követi az ujjat, majd vált, vagy visszaugrik
 let swipeStart = null;
 const gridEl = $('grid');
+function snapBack() {
+  gridEl.style.transition = 'transform .32s cubic-bezier(.2,.8,.2,1), opacity .32s';
+  gridEl.style.transform = '';
+  gridEl.style.opacity = '';
+}
 gridEl.addEventListener('touchstart', e => {
   const t = e.touches[0];
   swipeStart = { x: t.clientX, y: t.clientY };
+  gridEl.style.transition = 'none';
+}, { passive: true });
+gridEl.addEventListener('touchmove', e => {
+  if (!swipeStart) return;
+  const t = e.touches[0];
+  const dx = t.clientX - swipeStart.x, dy = t.clientY - swipeStart.y;
+  if (Math.abs(dy) > Math.abs(dx)) return;
+  gridEl.style.transform = `translateX(${dx * 0.55}px)`;
+  gridEl.style.opacity = String(1 - Math.min(Math.abs(dx) / 500, 0.35));
 }, { passive: true });
 gridEl.addEventListener('touchend', e => {
   if (!swipeStart) return;
   const t = e.changedTouches[0];
   const dx = t.clientX - swipeStart.x, dy = t.clientY - swipeStart.y;
   swipeStart = null;
-  if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) stepMonth(dx < 0 ? 1 : -1);
+  if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+    gridEl.style.transition = 'none';
+    gridEl.style.transform = '';
+    gridEl.style.opacity = '';
+    stepMonth(dx < 0 ? 1 : -1);
+  } else {
+    snapBack();
+  }
 }, { passive: true });
+gridEl.addEventListener('touchcancel', () => { swipeStart = null; snapBack(); }, { passive: true });
 $('monthSel').onchange = () => goTo(view.getFullYear(), Number($('monthSel').value));
 $('yearSel').onchange = () => goTo(Number($('yearSel').value), view.getMonth());
 $('todayBtn').onclick = () => { const t = new Date(); goTo(t.getFullYear(), t.getMonth(), t.getDate()); $('search').value = ''; render(); };
@@ -694,6 +763,12 @@ function syncSelects() {
 function render() {
   if (!unlocked) return;
   syncSelects();
+  const mt = $('mtitle'), mk = view.getFullYear() + '-' + view.getMonth();
+  if (mt.dataset.k !== mk) {
+    mt.dataset.k = mk;
+    mt.textContent = `${MONTHS[view.getMonth()]} ${view.getFullYear()}`;
+    mt.classList.remove('flip'); void mt.offsetWidth; mt.classList.add('flip');
+  }
   const grid = $('grid');
   grid.innerHTML = '';
   ['H','K','Sze','Cs','P','Szo','V'].forEach(w => grid.insertAdjacentHTML('beforeend', `<div class="wd">${w}</div>`));
